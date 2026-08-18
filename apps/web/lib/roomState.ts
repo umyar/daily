@@ -1,8 +1,14 @@
-// The authoritative copy of every live session. Clients render what this says.
+// The shape of a session and the only place it is allowed to change. Shared by
+// the client (types), the Vercel function, and the local dev server.
 
 export type Question = { id: string; text: string }
 
+// 'missing' is a room nobody has opened (or one that has already expired) —
+// distinct from 'closed', which the host ended deliberately.
+export type SessionStatus = 'missing' | 'open' | 'closed'
+
 export type RoomState = {
+  status: SessionStatus
   questions: Question[]
   drawnIds: string[]
   started: boolean
@@ -15,15 +21,14 @@ export type Action =
   | { type: 'start' }
   | { type: 'draw'; expect: number }
   | { type: 'reset' }
+  | { type: 'close' }
 
 const ROOM_ID = /^[A-Z0-9]{6}$/
 const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // no O/0, no I/1
 const MAX_QUESTIONS = 100
 const MAX_TEXT = 500
-const ROOM_TTL = 12 * 60 * 60 * 1000
-const SWEEP_EVERY = 30 * 60 * 1000
 
-const rooms = new Map<string, { state: RoomState; touched: number }>()
+export const ROOM_TTL_SECONDS = 12 * 60 * 60
 
 export function isRoomId(id: string): boolean {
   return ROOM_ID.test(id)
@@ -35,39 +40,25 @@ export function newRoomId(): string {
   return id
 }
 
-function emptyState(): RoomState {
-  return { questions: [], drawnIds: [], started: false, version: 0 }
+export function missingState(): RoomState {
+  return { status: 'missing', questions: [], drawnIds: [], started: false, version: 0 }
 }
 
-export function getRoom(id: string): RoomState {
-  const existing = rooms.get(id)
-  if (existing) {
-    existing.touched = Date.now()
-    return existing.state
-  }
-  const state = emptyState()
-  rooms.set(id, { state, touched: Date.now() })
-  return state
+export function openState(): RoomState {
+  return { status: 'open', questions: [], drawnIds: [], started: false, version: 0 }
 }
 
-// Returns the room's state after the action. Unknown or no-op actions leave
-// version untouched, so polling clients don't get woken for nothing.
-export function apply(id: string, action: Action): RoomState {
-  const state = getRoom(id)
-  const next = reduce(state, action)
-  if (!next) return state
-  next.version = state.version + 1
-  rooms.set(id, { state: next, touched: Date.now() })
-  return next
-}
+// Returns null when the action changes nothing, so the version only moves on
+// real edits and polling clients aren't woken for nothing.
+export function reduce(state: RoomState, action: Action): RoomState | null {
+  // A session that was never opened, or that the host ended, takes no edits.
+  if (state.status !== 'open') return null
 
-function reduce(state: RoomState, action: Action): RoomState | null {
   switch (action.type) {
     case 'add': {
       const text = action.text.trim().slice(0, MAX_TEXT)
       if (!text || state.started || state.questions.length >= MAX_QUESTIONS) return null
-      const question = { id: crypto.randomUUID(), text }
-      return { ...state, questions: [...state.questions, question] }
+      return { ...state, questions: [...state.questions, { id: crypto.randomUUID(), text }] }
     }
 
     case 'remove': {
@@ -95,7 +86,13 @@ function reduce(state: RoomState, action: Action): RoomState | null {
 
     case 'reset': {
       if (!state.started && !state.questions.length) return null
-      return { ...emptyState(), version: state.version }
+      return { ...openState(), version: state.version }
+    }
+
+    // Host only — the gate lives in roomApi, since a pure reducer has no
+    // business knowing about credentials.
+    case 'close': {
+      return { ...state, status: 'closed' }
     }
 
     default:
@@ -119,13 +116,9 @@ export function parseAction(body: unknown): Action | null {
         : null
     case 'reset':
       return { type: 'reset' }
+    case 'close':
+      return { type: 'close' }
     default:
       return null
   }
 }
-
-// Standups end; the Map shouldn't grow forever.
-setInterval(() => {
-  const cutoff = Date.now() - ROOM_TTL
-  for (const [id, room] of rooms) if (room.touched < cutoff) rooms.delete(id)
-}, SWEEP_EVERY).unref()

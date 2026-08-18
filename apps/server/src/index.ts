@@ -1,12 +1,30 @@
+// Local development only. Production runs the same handler as a Vercel Function
+// (apps/web/api/room.ts) — this process exists so `pnpm dev` needs no Redis and
+// no Vercel CLI. Both paths share lib/roomApi.ts, so they can't drift.
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { apply, getRoom, isRoomId, newRoomId, parseAction } from './rooms.ts'
+import { handleApi } from '../../web/lib/roomApi.ts'
+import { memoryStore } from '../../web/lib/memoryStore.ts'
+
+// HOST_PASSWORD lives in the repo-root .env, which is gitignored. Production
+// reads the same name from Vercel's environment instead.
+const passwordFromEnvironment = process.env.HOST_PASSWORD
+try {
+  process.loadEnvFile(fileURLToPath(new URL('../../../.env', import.meta.url)))
+} catch {
+  console.warn('No .env found — set HOST_PASSWORD there to start sessions locally.')
+}
+// An explicitly exported variable outranks the dotfile.
+if (passwordFromEnvironment) process.env.HOST_PASSWORD = passwordFromEnvironment
 
 const PORT = Number(process.env.PORT ?? 8787)
 const WEB_DIST = fileURLToPath(new URL('../../web/dist/', import.meta.url))
 const MAX_BODY = 64 * 1024
+
+const store = memoryStore()
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -20,55 +38,44 @@ const MIME: Record<string, string> = {
 }
 
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', 'http://localhost')
+  const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
 
   try {
-    if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url)
+    if (url.pathname === '/api/room' || url.pathname === '/api/session') {
+      const body = await readBody(req)
+      if (body === null) {
+        res.writeHead(413, { 'content-type': MIME['.json'] })
+        res.end(JSON.stringify({ error: 'body too large' }))
+        return
+      }
+      const config = { store, hostPassword: process.env.HOST_PASSWORD }
+      const response = await handleApi(toRequest(req, url, body), config)
+      res.writeHead(response.status, Object.fromEntries(response.headers))
+      res.end(response.status === 204 ? undefined : Buffer.from(await response.arrayBuffer()))
+      return
+    }
+    if (url.pathname.startsWith('/api/')) {
+      res.writeHead(404, { 'content-type': MIME['.json'] })
+      res.end(JSON.stringify({ error: 'not found' }))
+      return
+    }
     return await serveStatic(url.pathname, res)
   } catch (error) {
     console.error(error)
-    send(res, 500, { error: 'server error' })
+    res.writeHead(500, { 'content-type': MIME['.json'] })
+    res.end(JSON.stringify({ error: 'server error' }))
   }
 })
 
-async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL) {
-  if (url.pathname === '/api/room' && req.method === 'POST') {
-    return send(res, 200, { id: newRoomId() })
-  }
-
-  const match = /^\/api\/room\/([^/]+)$/.exec(url.pathname)
-  if (!match) return send(res, 404, { error: 'not found' })
-
-  const id = match[1]
-  if (!isRoomId(id)) return send(res, 400, { error: 'bad room id' })
-
-  if (req.method === 'GET') {
-    const state = getRoom(id)
-    // Nothing new since the client's last poll — keep the response empty. A
-    // request that names no version always gets the state.
-    const since = url.searchParams.get('since')
-    if (since !== null && Number(since) === state.version) {
-      res.writeHead(204).end()
-      return
-    }
-    return send(res, 200, state)
-  }
-
-  if (req.method === 'POST') {
-    const body = await readBody(req)
-    if (body === null) return send(res, 413, { error: 'body too large' })
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(body)
-    } catch {
-      return send(res, 400, { error: 'bad json' })
-    }
-    const action = parseAction(parsed)
-    if (!action) return send(res, 400, { error: 'bad action' })
-    return send(res, 200, apply(id, action))
-  }
-
-  send(res, 405, { error: 'method not allowed' })
+function toRequest(req: IncomingMessage, url: URL, body: string): Request {
+  const method = req.method ?? 'GET'
+  return new Request(url, {
+    method,
+    headers: Object.entries(req.headers).flatMap(([name, value]) =>
+      typeof value === 'string' ? [[name, value] as [string, string]] : [],
+    ),
+    body: method === 'GET' || method === 'HEAD' ? undefined : body,
+  })
 }
 
 async function serveStatic(pathname: string, res: ServerResponse) {
@@ -134,11 +141,6 @@ function readBody(req: IncomingMessage) {
   })
 }
 
-function send(res: ServerResponse, status: number, body: unknown) {
-  res.writeHead(status, { 'content-type': MIME['.json'], 'cache-control': 'no-store' })
-  res.end(JSON.stringify(body))
-}
-
 server.listen(PORT, () => {
-  console.log(`daily server on http://localhost:${PORT}`)
+  console.log(`daily dev server on http://localhost:${PORT}`)
 })
