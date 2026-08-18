@@ -69,6 +69,33 @@ unless the session is `open`, so ending one locks it for everybody at the same
 moment, including anyone who already had the page loaded. Their next poll
 returns `closed` and the app says so.
 
+## A build constraint worth knowing
+
+Relative imports under `apps/web` are written with a `.js` extension even though
+the files on disk are `.ts` — `import { handleApi } from './roomApi.js'`.
+
+Vercel compiles the functions with its own `tsc` invocation, using a config this
+repo does not control. That config emits, and TypeScript refuses
+`allowImportingTsExtensions` alongside emit, so a `.ts` specifier is a build
+error there. Worse, that error does not fail the deployment: Vercel prints it,
+emits broken output anyway, and the functions then die at runtime with
+`FUNCTION_INVOCATION_FAILED`. Writing `.js` sidesteps it — TypeScript resolves
+the specifier to the `.ts` source, and the emitted JavaScript points at the
+emitted JavaScript.
+
+That same config has been seen compiling without Node's type definitions, which
+is why `lib/env.ts` declares the one global it needs instead of reaching for
+`process` directly.
+
+Two consequences:
+
+- `pnpm build` runs `tsc -p tsconfig.api.json` before `vite build`, so a type
+  error in `api/` or `lib/` fails the build here rather than shipping something
+  that only breaks in production.
+- Node's own type stripping takes `./roomApi.js` literally and would look for a
+  file that was never written, so the dev server registers a resolve hook
+  (`apps/server/register.mjs`) mapping those specifiers back to `.ts`.
+
 ## How the sharing works
 
 Clients poll `GET /api/room?id=<room>&since=<version>` once a second and get a

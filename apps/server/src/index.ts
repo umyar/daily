@@ -6,8 +6,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { handleApi } from '../../web/lib/roomApi.ts'
-import { memoryStore } from '../../web/lib/memoryStore.ts'
+import { handleApi } from '../../web/lib/roomApi.js'
+import { memoryStore } from '../../web/lib/memoryStore.js'
 
 // HOST_PASSWORD lives in the repo-root .env, which is gitignored. Production
 // reads the same name from Vercel's environment instead.

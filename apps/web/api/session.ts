@@ -1,4 +1,4 @@
-import { serve } from '../lib/entry.ts'
+import { serve } from '../lib/entry.js'
 
 export const runtime = 'nodejs'
 

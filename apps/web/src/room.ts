@@ -1,8 +1,8 @@
 // The server owns the session; this module is the wire to it.
 
-export type { Question, RoomState, Action, SessionStatus } from '../lib/roomState.ts'
+export type { Question, RoomState, Action, SessionStatus } from '../lib/roomState.js'
 
-import type { Action, RoomState } from '../lib/roomState.ts'
+import type { Action, RoomState } from '../lib/roomState.js'
 
 const PASSWORD_HEADER = 'x-daily-host'
 const TOKEN_HEADER = 'x-daily-token'

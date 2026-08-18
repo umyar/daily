@@ -1,8 +1,8 @@
 // Local dev only. A single long-lived process, so a Map is enough and the
 // version check never actually loses — Node serialises the requests for us.
 
-import { missingState, ROOM_TTL_SECONDS, type RoomState } from './roomState.ts'
-import type { Store } from './roomApi.ts'
+import { missingState, ROOM_TTL_SECONDS, type RoomState } from './roomState.js'
+import type { Store } from './roomApi.js'
 
 const SWEEP_EVERY = 30 * 60 * 1000
 

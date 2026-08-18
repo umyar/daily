@@ -2,8 +2,9 @@
 // declares its own literal `runtime` export, because Vercel reads route segment
 // options by static analysis and a re-export can hide them.
 
-import { handleApi, type Store } from './roomApi.ts'
-import { redisStore } from './redisStore.ts'
+import { envValue } from './env.js'
+import { handleApi, type Store } from './roomApi.js'
+import { redisStore } from './redisStore.js'
 
 let store: Store | undefined
 
@@ -18,5 +19,5 @@ export async function serve(request: Request): Promise<Response> {
       headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
     })
   }
-  return handleApi(request, { store, hostPassword: process.env.HOST_PASSWORD })
+  return handleApi(request, { store, hostPassword: envValue('HOST_PASSWORD') })
 }

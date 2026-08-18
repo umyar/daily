@@ -2,8 +2,9 @@
 // lives in Redis and the compare-and-swap has to be genuinely atomic.
 
 import { Redis } from '@upstash/redis'
-import { missingState, ROOM_TTL_SECONDS, type RoomState } from './roomState.ts'
-import type { Store } from './roomApi.ts'
+import { envValue } from './env.js'
+import { missingState, ROOM_TTL_SECONDS, type RoomState } from './roomState.js'
+import type { Store } from './roomApi.js'
 
 // Runs server-side inside Redis, so the read of `version` and the write that
 // depends on it can't be interleaved by another request.
@@ -20,8 +21,8 @@ return 1
 `
 
 export function redisStore(): Store {
-  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN
+  const url = envValue('UPSTASH_REDIS_REST_URL') ?? envValue('KV_REST_API_URL')
+  const token = envValue('UPSTASH_REDIS_REST_TOKEN') ?? envValue('KV_REST_API_TOKEN')
   if (!url || !token) {
     throw new Error(
       'No Redis credentials. Add Upstash Redis from the Vercel dashboard (Storage tab) ' +

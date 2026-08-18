@@ -2,7 +2,7 @@
 // server both hand requests here — only the Store behind it differs, so the two
 // environments can't drift apart.
 
-import { isHost, issueToken, passwordMatches, suppliedPassword, TOKEN_TTL_MS } from './hostAuth.ts'
+import { isHost, issueToken, passwordMatches, suppliedPassword, TOKEN_TTL_MS } from './hostAuth.js'
 import {
   isRoomId,
   missingState,
@@ -11,7 +11,7 @@ import {
   parseAction,
   reduce,
   type RoomState,
-} from './roomState.ts'
+} from './roomState.js'
 
 export type Store = {
   read(id: string): Promise<RoomState>
