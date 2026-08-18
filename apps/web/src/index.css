@@ -1,0 +1,74 @@
+:root {
+  /* Left as `light dark`, the OS decides; the toggle pins it below. */
+  color-scheme: light dark;
+
+  --bg: light-dark(#f4f6f9, #0f1115);
+  --panel: light-dark(#ffffff, #171a21);
+  --field: light-dark(#f7f8fb, #12151c);
+  --line: light-dark(#e2e5ec, #262b35);
+  --control: light-dark(#edeff4, #20242e);
+  --control-hover: light-dark(#e1e5ee, #2a3040);
+  --text: light-dark(#12151c, #e7e9ee);
+  --muted: light-dark(#5f6775, #8b93a3);
+  --accent: light-dark(#4a63ff, #6c8cff);
+  --accent-hover: light-dark(#3a52e8, #8aa2ff);
+  --on-accent: light-dark(#ffffff, #0b0e14);
+  --danger-bg: light-dark(#fdeceb, #2a1a18);
+  --danger-line: light-dark(#f0c3bd, #6b3b34);
+  --danger-text: light-dark(#a32b1c, #ffb4a8);
+
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--control);
+  color: var(--text);
+  padding: 0.6rem 1rem;
+  transition: background 120ms ease, opacity 120ms ease, color 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--control-hover);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+input {
+  font: inherit;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
