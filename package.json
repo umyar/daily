@@ -3,9 +3,10 @@
   "private": true,
   "packageManager": "pnpm@11.3.0",
   "scripts": {
-    "dev": "pnpm --filter web dev",
+    "dev": "pnpm -r --parallel dev",
     "build": "pnpm --filter web build",
+    "start": "pnpm --filter server start",
     "lint": "pnpm --filter web lint",
-    "preview": "pnpm --filter web preview"
+    "typecheck": "pnpm -r typecheck"
   }
 }

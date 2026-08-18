@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import type { Question } from './session'
+import type { Question } from './room'
 
 type Props = {
   questions: Question[]
