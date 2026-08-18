@@ -23,9 +23,14 @@ outranks the file, which is handy for testing with a throwaway value.
 
 ## Deploying
 
-Production is Vercel, serving the built client and one function at
-`apps/web/api/room.ts`. The project's root directory is `apps/web`, which is why
-`api/` and `lib/` live there.
+Production is Vercel, serving the built client and two functions from
+`apps/web/api/`. The project's root directory is `apps/web`, which is why `api/`,
+`lib/`, and `vercel.json` live there rather than at the repository root.
+
+A Vite SPA gets no deep-link fallback on Vercel by default, so a shared
+`/r/ABC123` link 404s until `vercel.json` rewrites it to `index.html`. The rule
+is scoped to `/r/` rather than catching everything, so it cannot shadow `/api`
+or a fingerprinted asset.
 
 Vercel Functions share no memory between invocations, so production keeps rooms
 in Upstash Redis instead. Add it once from the Vercel dashboard under Storage —
