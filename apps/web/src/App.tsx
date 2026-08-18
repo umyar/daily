@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Collect } from './Collect'
 import { Draw } from './Draw'
+import { Logo } from './Logo'
 import { ThemeToggle } from './ThemeToggle'
 import { playClick } from './sounds'
 import { applyTheme, loadTheme, type Theme } from './theme'
@@ -53,6 +54,7 @@ export default function App() {
 
   return (
     <main className="app">
+      <Logo />
       <ThemeToggle theme={theme} onChange={setTheme} />
       {session.started ? (
         <Draw
