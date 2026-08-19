@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Question } from './room'
-import { playLand, playTick } from './sounds'
+import { playFinale, playLand, playTick } from './sounds'
 
 const FIRST_TICK = 55
 const SLOWDOWN = 1.16
@@ -45,6 +45,14 @@ export function Draw({ questions, drawnIds, onDraw, onReset }: Props) {
     // What was still in play before this draw — the winner is already out of
     // `remaining` by the time we hear about it.
     const pool = [...remaining, winner]
+
+    // Nothing to spin between: the answer was never in doubt, so show it at
+    // once and mark the end of the round instead of faking suspense.
+    if (pool.length === 1) {
+      playFinale()
+      return
+    }
+
     let cursor = Math.floor(Math.random() * pool.length)
     let delay = FIRST_TICK
     let ticks = 0

@@ -19,7 +19,6 @@ export function memoryStore(): Store {
     async read(id) {
       const room = rooms.get(id)
       if (!room) return missingState()
-      room.touched = Date.now()
       return room.state
     },
 

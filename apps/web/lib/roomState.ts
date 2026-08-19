@@ -28,7 +28,7 @@ const ID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // no O/0, no I/1
 const MAX_QUESTIONS = 100
 const MAX_TEXT = 500
 
-export const ROOM_TTL_SECONDS = 12 * 60 * 60
+export const ROOM_TTL_SECONDS = 30 * 60
 
 export function isRoomId(id: string): boolean {
   return ROOM_ID.test(id)

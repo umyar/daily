@@ -127,8 +127,17 @@ trivial, since Node serialises the requests anyway; on Redis it is a Lua script,
 so the read of `version` and the write depending on it cannot interleave — which
 matters far more there, where concurrent requests land in separate instances.
 
-Rooms expire 12 hours after their last write. If a standup needs to outlive
-that, the TTL is `ROOM_TTL_SECONDS` in `apps/web/lib/roomState.ts`.
+Rooms expire 30 minutes after their last *write* — adding a question, Done,
+a draw, closing. Reads deliberately do not extend it, so a forgotten open tab
+cannot keep a room alive and polling costs nothing but a read. The practical
+consequence: a room left idle for half an hour is gone even with the page still
+open, so questions cannot be collected across a whole morning. `ROOM_TTL_SECONDS`
+in `apps/web/lib/roomState.ts` is the single knob.
+
+The last question skips the wheel. There is nothing to choose between, so
+faking suspense only wastes two seconds — it reveals at once and plays a
+fanfare instead of the usual landing chime, which is what signals the round is
+over.
 
 ## Layout
 
