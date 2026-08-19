@@ -33,10 +33,15 @@ is scoped to `/r/` rather than catching everything, so it cannot shadow `/api`
 or a fingerprinted asset.
 
 Vercel Functions share no memory between invocations, so production keeps rooms
-in Upstash Redis instead. Add it once from the Vercel dashboard under Storage —
-it injects `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` into the
-project. Without them the API answers 503 with a message saying exactly that,
-rather than failing in a way the client can only report as "offline".
+in Redis. Any provider works — the store speaks the ordinary TCP protocol over
+`ioredis`, not a vendor HTTP API — so all it needs is a connection string in a
+variable whose name ends with `REDIS_URL`. Marketplace integrations let you
+choose a prefix, hence matching the ending rather than an exact name.
+
+The connection lives at module scope so a warm instance reuses it instead of
+dialling on every request. Without a usable connection string the API answers
+503 naming what it did find, rather than failing in a way the client can only
+report as "offline".
 
 `HOST_PASSWORD` also has to be set in the Vercel project's environment
 variables — it is both the password and the token signing key. Deliberately no `VITE_` prefix: Vite inlines anything so prefixed
@@ -119,7 +124,8 @@ That seam matters: an earlier version had two separate server implementations,
 and production broke precisely because they diverged. Storage is a two-method
 `Store` — read, and write-if-the-version-still-matches. In memory that check is
 trivial, since Node serialises the requests anyway; on Redis it is a Lua script,
-so the read of `version` and the write depending on it cannot interleave.
+so the read of `version` and the write depending on it cannot interleave — which
+matters far more there, where concurrent requests land in separate instances.
 
 Rooms expire 12 hours after their last write. If a standup needs to outlive
 that, the TTL is `ROOM_TTL_SECONDS` in `apps/web/lib/roomState.ts`.

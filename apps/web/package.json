@@ -11,7 +11,7 @@
     "typecheck": "tsc -b && tsc -p tsconfig.api.json"
   },
   "dependencies": {
-    "@upstash/redis": "^1.35.7",
+    "ioredis": "^6.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
