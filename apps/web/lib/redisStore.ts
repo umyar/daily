@@ -2,7 +2,7 @@
 // lives in Redis and the compare-and-swap has to be genuinely atomic.
 
 import { Redis } from '@upstash/redis'
-import { envEndingWith, envNames } from './env.js'
+import { envEndingWith, envNames, envValue } from './env.js'
 import { missingState, ROOM_TTL_SECONDS, type RoomState } from './roomState.js'
 import type { Store } from './roomApi.js'
 
@@ -58,6 +58,8 @@ export function redisStore(): Store {
 
 // Names only, and only Redis-ish ones — enough to see what an integration
 // actually injected without printing anything sensitive on a public endpoint.
+// Values are reduced to scheme and host, which identifies the provider; the
+// credentials inside a connection string are never echoed.
 function describeMissing(url: string | undefined, token: string | undefined): string {
   const related = envNames().filter((name) => /REDIS|UPSTASH|\bKV_/.test(name))
   const missing = [!url && 'REST URL', !token && 'REST token'].filter(Boolean).join(' and ')
@@ -70,11 +72,29 @@ function describeMissing(url: string | undefined, token: string | undefined): st
     )
   }
 
+  const described = related
+    .map((name) => {
+      const shape = safeShape(envValue(name))
+      return shape ? `${name} (${shape})` : name
+    })
+    .join(', ')
+
   return (
-    `No Redis credentials (missing ${missing}). These Redis-related variables are set: ` +
-    `${related.join(', ')}. This app needs the REST API pair — a name ending in one of ` +
-    `${URL_ENDINGS.join('/')} and one ending in ${TOKEN_ENDINGS.join('/')}. A redis:// ` +
-    `connection string alone will not work; the REST URL and token are separate values ` +
-    `on the Upstash database page.`
+    `No Redis credentials (missing ${missing}). Redis-related variables set: ${described}. ` +
+    `This app needs the REST API pair — a name ending in one of ${URL_ENDINGS.join('/')} ` +
+    `and one ending in ${TOKEN_ENDINGS.join('/')}. A redis:// connection string alone ` +
+    `cannot drive the REST client.`
   )
+}
+
+// Scheme and host only. Anything that does not parse as a URL is withheld
+// entirely rather than risk printing a secret.
+function safeShape(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  try {
+    const parsed = new URL(value)
+    return `${parsed.protocol}//${parsed.username || parsed.password ? '***@' : ''}${parsed.host}`
+  } catch {
+    return undefined
+  }
 }
