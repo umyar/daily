@@ -28,6 +28,8 @@
 }
 
 .panel {
+  position: relative;
+  z-index: 1;
   width: min(38rem, 100%);
   display: flex;
   flex-direction: column;
@@ -239,6 +241,63 @@ h1 {
   color: var(--accent);
 }
 
+/* The host reacts to the draw. He grows from his own bottom edge rather than
+   sliding up, so he stays welded to the floor at every viewport height — a
+   translate would expose the flat crop across the bottom of the photo.
+   `right` is derived from his width so his hands always clear the centred
+   panel by ~1rem instead of hiding behind it. */
+.host {
+  /* Capped by the room left beside the panel, so `right` below never has to
+     clamp to 0 — that clamp is what would slide his hands back behind it. */
+  --host-w: min(30rem, calc((50vw - 22rem) / 0.7));
+
+  position: fixed;
+  right: max(0px, calc(50vw - 0.7 * var(--host-w) - 22rem));
+  bottom: 0;
+  z-index: 0;
+  width: var(--host-w);
+  aspect-ratio: 833 / 1021;
+  background: url('/umyar-cutout.webp') no-repeat bottom center / contain;
+  pointer-events: none;
+  transform-origin: bottom center;
+  translate: 0 9%;
+  filter: saturate(0.4) brightness(0.85);
+  transition: translate 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    scale 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    rotate 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2), filter 420ms ease;
+}
+
+.host-spinning {
+  translate: 0 3%;
+  scale: 1.03;
+  filter: none;
+  animation: shake 92ms steps(2) infinite;
+}
+
+/* Tallest of the three: he leans in over whatever landed, hands in frame. */
+.host-landed {
+  translate: 0 0;
+  scale: 1.14;
+  rotate: -1.2deg;
+  filter: saturate(1.08) brightness(1.03);
+}
+
+@keyframes shake {
+  from {
+    margin-right: -2px;
+  }
+  to {
+    margin-right: 2px;
+  }
+}
+
+/* Below this the panel fills the width and he has nowhere to stand. */
+@media (max-width: 60rem) {
+  .host {
+    display: none;
+  }
+}
+
 @keyframes land {
   from {
     opacity: 0;
@@ -266,9 +325,19 @@ h1 {
   .stage.spinning .question {
     animation: none;
   }
+
+  .host {
+    transition: none;
+  }
+
+  .host-spinning {
+    animation: none;
+  }
 }
 
 .roombar {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;

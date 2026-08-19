@@ -87,37 +87,42 @@ export function Draw({ questions, drawnIds, onDraw, onReset }: Props) {
 
   const shown = spinning ? flash : current
   const done = !remaining.length
+  // Idle until the first draw, then he stays leaning over whatever landed.
+  const pose = spinning ? 'spinning' : current ? 'landed' : 'idle'
 
   return (
-    <div className="panel">
-      <div className="meta">
-        <span>
-          {remaining.length} of {questions.length} left
-        </span>
-        <ResetButton className="ghost" onReset={onReset} />
-      </div>
+    <>
+      <div className={`host host-${pose}`} aria-hidden="true" />
+      <div className="panel">
+        <div className="meta">
+          <span>
+            {remaining.length} of {questions.length} left
+          </span>
+          <ResetButton className="ghost" onReset={onReset} />
+        </div>
 
-      <div className={`stage${spinning ? ' spinning' : ''}`}>
-        {shown ? (
-          <p key={shown.id} className="question">
-            {shown.text}
-          </p>
+        <div className={`stage${spinning ? ' spinning' : ''}`}>
+          {shown ? (
+            <p key={shown.id} className="question">
+              {shown.text}
+            </p>
+          ) : (
+            <p className="question placeholder">Ready when you are.</p>
+          )}
+        </div>
+
+        {done ? (
+          <div className="finish">
+            <p className="hint">All questions used.</p>
+            <ResetButton className="primary" onReset={onReset} />
+          </div>
         ) : (
-          <p className="question placeholder">Ready when you are.</p>
+          <button type="button" className="primary" disabled={spinning} onClick={onDraw}>
+            Randomize!
+          </button>
         )}
       </div>
-
-      {done ? (
-        <div className="finish">
-          <p className="hint">All questions used.</p>
-          <ResetButton className="primary" onReset={onReset} />
-        </div>
-      ) : (
-        <button type="button" className="primary" disabled={spinning} onClick={onDraw}>
-          Randomize!
-        </button>
-      )}
-    </div>
+    </>
   )
 }
 
