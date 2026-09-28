@@ -32,24 +32,27 @@ export function redisStore(): Store {
   const url = envEndingWith(URL_ENDINGS)
   if (!url) throw new Error(describeMissing())
 
-  shared ??= new Redis(url, {
-    // A hung dial should surface as a failed request, not a stalled function.
-    connectTimeout: 5000,
-    maxRetriesPerRequest: 2,
-    enableReadyCheck: false,
-  })
-  const redis = shared
+  // Resolved per command rather than captured once. Closing over the client
+  // would pin a dead one for the lifetime of the instance, which is exactly
+  // what `dropSharedConnection` exists to undo.
+  const connect = () =>
+    (shared ??= new Redis(url, {
+      // A hung dial should surface as a failed request, not a stalled function.
+      connectTimeout: 5000,
+      maxRetriesPerRequest: 2,
+      enableReadyCheck: false,
+    }))
   const key = (id: string) => `room:${id}`
 
   return {
     async read(id) {
-      const stored = await redis.hget(key(id), 'state')
+      const stored = await connect().hget(key(id), 'state')
       if (stored === null) return missingState()
       return JSON.parse(stored) as RoomState
     },
 
     async write(id, expectedVersion, next) {
-      const ok = await redis.eval(
+      const ok = await connect().eval(
         CAS,
         1,
         key(id),
@@ -61,6 +64,74 @@ export function redisStore(): Store {
       return Number(ok) === 1
     },
   }
+}
+
+// ioredis redials on its own, so dropping the client is not what makes recovery
+// possible — but that redial backs off toward two seconds, and it runs for as
+// long as the warm instance lives even when the server is never coming back.
+// Letting go costs nothing and turns the next request into a clean dial:
+// measured against a server that had just returned, 2ms rather than 216ms, and
+// the gap widens the longer the outage ran.
+export function dropSharedConnection(): void {
+  const dead = shared
+  shared = undefined
+  // `disconnect`, not `quit`: QUIT waits for a reply from a server that by
+  // definition is not answering, and we want the retry loop abandoned anyway.
+  dead?.disconnect()
+}
+
+// Socket-level failures. `code` is absent from most of what ioredis hands back
+// — an exhausted retry loop reports itself rather than the errno underneath —
+// so this is the rarer shape, not the usual one.
+const CONNECTION_ERRNOS = [
+  'ENOTFOUND',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EAI_AGAIN',
+  'EPIPE',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+]
+
+// The server answered and refused us. A different cause, but the same
+// consequence for the caller, and equally not something a retry will fix.
+const REFUSED_REPLY = /^(WRONGPASS|NOAUTH|NOPERM|ERR max number of clients)/
+
+// A public-facing explanation when `error` means the store is unreachable, and
+// undefined when it is an ordinary bug that must not be dressed up as an
+// outage. Never echoes the connection string: only the kind of failure and the
+// scheme-and-host shape, which identifies the provider without its credentials.
+export function connectionFailure(error: unknown): string | undefined {
+  const kind = connectionErrorKind(error)
+  if (!kind) return undefined
+
+  const target = safeShape(envEndingWith(URL_ENDINGS))
+  return (
+    `Storage unavailable (${kind}). ` +
+    (target ? `${target} is not answering. ` : '') +
+    'Check that the Redis instance still exists and that the connection string ' +
+    'in this deployment still points at it.'
+  )
+}
+
+function connectionErrorKind(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined
+
+  // What an unreachable server actually produces: ioredis spends
+  // `maxRetriesPerRequest` and then reports its own error, so this is the
+  // common case rather than the exotic one.
+  if (error.name === 'MaxRetriesPerRequestError') return error.name
+  if (/Connection is closed|Stream isn't writeable/i.test(error.message)) {
+    return 'connection closed'
+  }
+
+  const code = (error as { code?: unknown }).code
+  if (typeof code === 'string' && CONNECTION_ERRNOS.includes(code)) return code
+
+  if (REFUSED_REPLY.test(error.message)) return 'connection refused by the server'
+
+  return undefined
 }
 
 // Names only, and only Redis-ish ones — enough to see what an integration

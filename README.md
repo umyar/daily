@@ -43,6 +43,17 @@ dialling on every request. Without a usable connection string the API answers
 503 naming what it did find, rather than failing in a way the client can only
 report as "offline".
 
+A connection string that is present but names a server that is gone — a deleted
+or expired instance, rotated credentials — gets past that check, because reading
+the variable is not dialling it. That failure surfaces on the first request to
+actually touch Redis, so the handler answers 503 there too, naming the kind of
+failure and the scheme-and-host it tried; the credentials in the connection
+string are never echoed. Anything that is not a connection failure stays a 500,
+so a genuine bug cannot hide behind an outage. The dead client is dropped on the
+way out: ioredis would redial on its own, but only after a backoff that climbs
+toward two seconds, and it keeps retrying in the background for as long as the
+instance stays warm even when the server is never coming back.
+
 `HOST_PASSWORD` also has to be set in the Vercel project's environment
 variables — it is both the password and the token signing key. Deliberately no `VITE_` prefix: Vite inlines anything so prefixed
 into the public client bundle, which would publish the credential to everyone
