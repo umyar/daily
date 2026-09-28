@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { Question } from './room'
 import { playFinale, playLand, playTick } from './sounds'
+
+// Each cutout is cropped tight to its own cat, so they all land on different
+// ratios; the box has to take the cat's rather than impose one. Picked at
+// module scope, so a viewer keeps the same cat for the whole visit even if
+// Draw remounts, while everyone in the room gets their own.
+const CATS = [
+  { src: '/cat1-cutout.webp', ratio: '958 / 699' },
+  { src: '/cat2-cutout.webp', ratio: '403 / 516' },
+  { src: '/cat3-sticker.webp', ratio: '385 / 438' },
+  { src: '/cat4-cutout.webp', ratio: '225 / 204' },
+  { src: '/cat5-cutout.webp', ratio: '335 / 597' },
+  { src: '/cat6-cutout.webp', ratio: '1024 / 1024' },
+  { src: '/cat7-cutout.webp', ratio: '198 / 273' },
+]
+const CAT = CATS[Math.floor(Math.random() * CATS.length)]
 
 const FIRST_TICK = 55
 const SLOWDOWN = 1.16
@@ -92,7 +108,13 @@ export function Draw({ questions, drawnIds, onDraw, onReset }: Props) {
 
   return (
     <>
-      <div className={`host host-${pose}`} aria-hidden="true" />
+      <div
+        className={`host host-${pose}`}
+        style={
+          { '--host-img': `url('${CAT.src}')`, '--host-ar': CAT.ratio } as CSSProperties
+        }
+        aria-hidden="true"
+      />
       <div className="panel">
         <div className="meta">
           <span>

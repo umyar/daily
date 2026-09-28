@@ -17,6 +17,20 @@
   --danger-line: light-dark(#f0c3bd, #6b3b34);
   --danger-text: light-dark(#a32b1c, #ffb4a8);
 
+  /* Three stacked layers — contact, mid, ambient — so the panel reads as
+     lifted rather than outlined. Only the colours switch per theme: on light
+     a cool near-black at low alpha, on dark a true black at high alpha, since
+     the panel sits barely eight levels above its own background there and a
+     faint shadow would not register at all. */
+  --shadow-contact: light-dark(rgb(18 21 28 / 0.05), rgb(0 0 0 / 0.5));
+  --shadow-mid: light-dark(rgb(18 21 28 / 0.1), rgb(0 0 0 / 0.6));
+  --shadow-ambient: light-dark(rgb(18 21 28 / 0.12), rgb(0 0 0 / 0.55));
+  /* A shadow bottoms out on dark — the page is already near-black, so there is
+     no darker to go. Depth there has to come from a lit top edge instead, as
+     if the panel were tilted up into the light. Transparent on light, where
+     the shadow alone does the job. */
+  --panel-edge: light-dark(transparent, rgb(255 255 255 / 0.055));
+
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 

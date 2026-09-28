@@ -38,6 +38,13 @@
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
+  /* Sits above `.host`, so this also casts over the cat and keeps the two
+     from reading as one flat layer. */
+  box-shadow:
+    inset 0 1px 0 var(--panel-edge),
+    0 1px 2px var(--shadow-contact),
+    0 8px 24px -6px var(--shadow-mid),
+    0 28px 56px -16px var(--shadow-ambient);
 }
 
 h1 {
@@ -241,23 +248,29 @@ h1 {
   color: var(--accent);
 }
 
-/* The host reacts to the draw. He grows from his own bottom edge rather than
-   sliding up, so he stays welded to the floor at every viewport height — a
+/* The host reacts to the draw. It grows from its own bottom edge rather than
+   sliding up, so it stays welded to the floor at every viewport height — a
    translate would expose the flat crop across the bottom of the photo.
-   `right` is derived from his width so his hands always clear the centred
-   panel by ~1rem instead of hiding behind it. */
+   Which cat it is, and that cat's aspect ratio, arrive as custom properties
+   from Draw: the cutouts are framed differently from one another, so a single
+   ratio hardcoded here would letterbox all but one of them inside the box. */
 .host {
-  /* Capped by the room left beside the panel, so `right` below never has to
-     clamp to 0 — that clamp is what would slide his hands back behind it. */
-  --host-w: min(30rem, calc((50vw - 22rem) / 0.7));
+  /* Every cutout is cropped tight to the cat, so the box has no empty margin
+     to lean over the panel with — it just stops where the panel starts. */
+  --host-w: min(30rem, calc(50vw - 22rem));
+  /* `.host-landed` scales about bottom centre, so the cat bleeds 7% of the box
+     past either side at the moment it leans in. Holding that much clear on the
+     right stops the viewport edge from lopping off an ear; on the left the cat
+     just slides behind the opaque panel, which reads as depth. */
+  --host-bleed: calc(0.07 * var(--host-w));
 
   position: fixed;
-  right: max(0px, calc(50vw - 0.7 * var(--host-w) - 22rem));
+  right: max(var(--host-bleed), calc(50vw - var(--host-w) - 22rem));
   bottom: 0;
   z-index: 0;
   width: var(--host-w);
-  aspect-ratio: 833 / 1021;
-  background: url('/umyar-cutout.webp') no-repeat bottom center / contain;
+  aspect-ratio: var(--host-ar);
+  background: var(--host-img) no-repeat bottom center / contain;
   pointer-events: none;
   transform-origin: bottom center;
   translate: 0 9%;
